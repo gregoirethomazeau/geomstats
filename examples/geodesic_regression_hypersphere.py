@@ -1,3 +1,6 @@
+import os
+os.environ['GEOMSTATS_BACKEND'] = 'pytorch'
+
 import matplotlib.pyplot as plt
 
 import geomstats.backend as gs

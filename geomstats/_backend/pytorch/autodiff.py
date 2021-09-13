@@ -37,7 +37,7 @@ def custom_gradient(*args):
     return decorator
 
 
-def value_and_grad(objective):
+def value_and_grad(objective, to_numpy=True):
     """'Return a function that returns both value and gradient.
 
     Suitable for use in scipy.optimize
@@ -62,7 +62,9 @@ def value_and_grad(objective):
             loss.backward(gradient=torch.ones_like(vel))
         else:
             loss.backward()
-        return loss.detach().numpy(), vel.grad.detach().numpy()
+        if to_numpy:
+            return loss.detach().numpy(), vel.grad.detach().numpy()
+        return loss.detach(), vel.grad.detach()
     return objective_with_grad
 
 
