@@ -155,7 +155,7 @@ class _Hypersphere(EmbeddedManifold):
         axes = (2, 0, 1) if base_point_spherical.ndim == 2 else (0, 1)
         theta = base_point_spherical[..., 0]
         phi = base_point_spherical[..., 1]
-        phi = gs.where(theta == 0., 0., phi)
+        # phi = gs.where(theta == 0., 0., phi)
 
         zeros = gs.zeros_like(theta)
 
@@ -198,8 +198,8 @@ class _Hypersphere(EmbeddedManifold):
                 " only in dimension 2."
             )
         if base_point is None and base_point_spherical is None:
-            raise ValueError('A base point must be given, either in '
-                             'extrinsic or in spherical coordinates.')
+            raise TypeError('A base point must be given, either in '
+                            'extrinsic or in spherical coordinates.')
         if base_point_spherical is None and base_point is not None:
             base_point_spherical = self.extrinsic_to_spherical(base_point)
 
