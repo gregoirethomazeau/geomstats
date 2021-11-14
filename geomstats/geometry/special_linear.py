@@ -44,7 +44,13 @@ class SpecialLinear(MatrixLieGroup):
         belongs : array-like, shape=[...,]
             Boolean evaluating if point belongs to the manifold.
         """
-        pass
+        ndim = point.ndim
+        if ndim == 1:
+            return False
+        mat_dim1 , mat_dim2 = point.shape[-2:]
+        if mat_dim1 != self.n or mat_dim2 != self.n:
+            return False
+        return gs.abs(gs.linalg.det(point) - 1) < atol
 
     def projection(self, point):
         """Project a point in embedding space to the group.
@@ -62,7 +68,14 @@ class SpecialLinear(MatrixLieGroup):
         projected : array-like, shape=[..., n, n]
             Projected point.
         """
-        pass
+        def projects(pt):
+            if pt.ndim == 2:
+                determinant = gs.linalg.det(pt)
+                point_flipped = utils.flip_determinant(pt,determinant)
+                return  ((1./gs.abs(determinant)) ** (1/self.n)) * point_flipped
+            else:
+                return gs.stack([projects(p) for p in pt])
+        return projects(point)
 
     def random_point(self, n_samples=1, bound=1.0, n_iter=100):
         """Sample in the group.
@@ -87,7 +100,20 @@ class SpecialLinear(MatrixLieGroup):
         point : array-like, shape=[..., dim]
            Sample.
         """
-        pass
+        n = self.n
+        sample = []
+        n_accepted, iteration = 0, 0
+        while n_accepted < n_samples and iteration < n_iter:
+            raw_samples = gs.random.normal(size=(n_samples - n_accepted, n, n))
+            dets = gs.linalg.det(raw_samples)
+            criterion = gs.abs(dets) > gs.atol
+            if gs.any(criterion):
+                sample.append(raw_samples[criterion])
+                n_accepted += gs.sum(criterion)
+            iteration += 1
+        if n_samples == 1:
+            return self.projection(sample[0][0])
+        return self.projection(gs.concatenate(sample))
 
 
 class SpecialLinearLieAlgebra(MatrixLieAlgebra):
@@ -103,7 +129,7 @@ class SpecialLinearLieAlgebra(MatrixLieAlgebra):
 
     def __init__(self, n):
         super(SpecialLinearLieAlgebra, self).__init__(
-            dim=int((n * (n - 1)) / 2),
+            dim=n**2 - 1, # I changed the dimension which was not correct
             n=n,
         )
 
@@ -123,7 +149,18 @@ class SpecialLinearLieAlgebra(MatrixLieAlgebra):
         basis_representation : array-like, shape=[..., dim]
             Coefficients in the basis.
         """
-        pass
+        def computes_basis_representation(matrix,n):
+            if matrix.ndim == 2:
+                matrix_representation = gs.ones(n**2 - 1)
+                for i in range(n):
+                    for j in range(n):
+                        if i != 0 or j != 0: matrix_representation[i*n+j-1] = matrix[i,j]
+                return matrix_representation
+            else:
+                return gs.stack([computes_basis_representation(mt,n) for mt in matrix])
+
+        return computes_basis_representation(matrix_representation,self.n)
+
 
     def belongs(self, point, atol=gs.atol):
         """Evaluate if the point belongs to the Lie algebra.
@@ -142,7 +179,14 @@ class SpecialLinearLieAlgebra(MatrixLieAlgebra):
         belongs : array-like, shape=[...,]
             Boolean evaluating if point belongs to the space.
         """
-        pass
+        ndim = point.ndim
+        if ndim == 1:
+            return False
+        mat_dim_1, mat_dim_2 = point.shape[-2:]
+        has_right_dimension = (mat_dim_1 == self.n) and (mat_dim_2 == self.n)
+        if has_right_dimension: return (gs.abs(gs.trace(point,axis1=-2,axis2= -1)) < atol)
+        else: return gs.zeros(point.shape[:-2],dtype=bool)
+
 
     def projection(self, point):
         """Project a point to the Lie algebra.
@@ -159,4 +203,11 @@ class SpecialLinearLieAlgebra(MatrixLieAlgebra):
         point: array-like, shape=[..., n, n]
             Projected point.
         """
-        pass
+        def projects(pt):
+            if pt.ndim == 2:
+                e00 = gs.zeros((self.n,self.n))
+                e00[0,0] = 1.
+                return pt - gs.trace(pt) * e00
+            else:
+                return gs.stack([projects(p) for p in pt])
+        return projects(point)
